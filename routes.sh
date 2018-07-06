@@ -39,8 +39,8 @@ done
 if [[ -z "$routeTable" ]]; then
 	echo "Retrieving default VPC route. Just wait."
 else
-	routes=`aws ec2 describe-route-tables --route-table-ids $routeTable --query "RouteTables[*].Routes[1].GatewayId" --output text`
-	echo "This is the first Target: $routes"
+	routes=`aws ec2 describe-route-tables --route-table-ids $routeTable --query "RouteTables[*].Routes[*]" --output table`
+	echo "This is the Route Table: \n $routes"
 fi
 
 
