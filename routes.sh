@@ -7,13 +7,15 @@
 read -p "Enter that instanceID: " instanceID
 
 
-# instance type, running state, subnet, az
+### instance type, running state, subnet, az
 instanceType=`aws ec2 describe-instance-attribute --instance-id $instanceID --attribute instanceType | sed -n '2p' | awk '{print $2}'`
 currentStatus=`aws ec2 describe-instances --instance-ids $instanceID --query 'Reservations[*].Instances[*].[State.Name]' --output text`
 subnetId=`aws ec2 describe-instances --instance-ids $instanceID --query 'Reservations[*].Instances[*].[SubnetId]' --output text`
 availabilityZone=`aws ec2 describe-instances --instance-ids $instanceID --query 'Reservations[*].Instances[*].[SubnetId]' --output text`
 routeTable=`aws ec2 describe-route-tables --query "RouteTables[*].Associations[?SubnetId=='$subnetId'].RouteTableId" --output text`
+routes=""
 
+####################################################################################
 echo "Instance type is:	$instanceType"
 echo "It is currently $currentStatus"
 echo "The subnet is $subnetId"
@@ -36,6 +38,10 @@ done
 
 if [[ -z "$routeTable" ]]; then
 	echo "Retrieving default VPC route. Just wait."
+else
+	routes=`aws ec2 describe-route-tables --route-table-ids $routeTable --query "RouteTables[*].Routes[1].GatewayId" --output text`
+	echo "This is the first Target: $routes"
 fi
+
 
 echo "end of test."
