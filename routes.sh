@@ -27,7 +27,15 @@ fi
 #interactive query to find if user wantes this answer.
 read -p "Do you want to find the routes? (y/n) " wantsRoute
 while [[ "$wantsRoute" != "y" && "$wantsRoute" != "Y" && "$wantsRoute" != "n" && "$wantsRoute" != "N" ]]; do
-        read -p "You gotta enter \"y\" or \"n\": " wantsRoute 
+        read -p "You gotta enter \"y\" or \"n\": " wantsRoute
+        if [[ wantsRoute == "n" || wantsRoute == "N" ]]; then
+		echo "fine. be that way"
+		exit 1
+	fi
 done
+
+if [[ -z "$routeTable" ]]; then
+	echo "Retrieving default VPC route. Just wait."
+fi
 
 echo "end of test."
