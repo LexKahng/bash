@@ -1,6 +1,7 @@
 #!/bin/bash
 ####################################################################################
 # Author: Daniel Kahng #############################################################
+# Ver: 0.1 #########################################################################
 ### Purpose & Overview #############################################################
 # The script will be used to retrieve network resource relationships to the instance. 
 # The script currently takes instanceID as input.
