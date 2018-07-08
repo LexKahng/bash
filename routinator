@@ -2,15 +2,16 @@
 ####################################################################################
 # Author: Daniel Kahng #############################################################
 ### Purpose & Overview #############################################################
-#The script will be used to retrieve network resource relationships to the instance. 
-#The script currently takes instanceID as input.
+# The script will be used to retrieve network resource relationships to the instance. 
+# The script currently takes instanceID as input.
 #***Assumes:AWS_PROFILE and AWS_REGION is already set***
-#For collaborators: Please refer to Variable Dictionary at the bottom
+# For collaborators: Please refer to Variable Dictionary at the bottom
 ####################################################################################
 # To Do: Fix Main Menu, implement optionSG and optionRoute
 # Route Checker <-- option 4. Will involve 2nd EC2 instanceID input
 # Input Validation for first option, or any string input. Expand the input type and
 # possibly node name
+# Issues: child --> parent ps3 and optionMain are not restored..
 ####################################################################################
 ### Main Section ###################################################################
 
@@ -59,8 +60,11 @@ vpcId=""
 ## newly added 
 sgTable=""
 sgLength=""
-acl=""
-caseMaster=""
+## newest for acl
+aclTableOutbound=""
+aclTableInbound=""
+aclId=""
+
 ####################################################################################
 ### Global Stuffs ##################################################################
 
@@ -76,6 +80,8 @@ instanceAttributes() {
 	vpcId=`aws ec2 describe-instances --instance-ids $instanceID --query 'Reservations[*].Instances[*].[VpcId]' --output text`
 }
 
+
+
 ### F()::instanceAttributeTell
 # Returns: String
 # Assumes: f()::instanceAttributes ran already
@@ -90,6 +96,8 @@ echo "AZ:		$availabilityZone"
 echo "VpcID:		$vpcId"
 echo "---------------------------------------------"
 }
+
+
 
 ### F()::setRoute
 # Returns: Nothing
@@ -107,6 +115,8 @@ setRoute() {
 	igwId=`aws ec2 describe-route-tables --route-table-ids $routeTableId --query 'RouteTables[*].routeTable[*].GatewayId' --output text | grep -o '\bigw-\w*'`
 }
 
+
+
 ### F()::setSG
 # Returns: Nothing
 # Role: Used by F()::optionSG
@@ -116,39 +126,68 @@ setSG() {
 	sgTable=`aws ec2 describe-instances --instance-id $instanceID --query 'Reservations[*].Instances[*].SecurityGroups[*].{GroupName:GroupName,GroupId:GroupId}' --output table`
 	sgLength=`aws ec2 describe-instances --instance-id $instanceID --query 'Reservations[*].Instances[*].SecurityGroups[*]' | awk '/{/ {d++} /}/ {d--} /{/ && d==1 {count++} END{print count}'`
 }
-### F()::optionMain
-#Returns: The Main menu for users to dig deeper
+
+
+
+## F()::setACL
+# Returns: Nothing
+# Role: Used by F()::optionACL
+# Assumes: f()::instanceAttributes ran already
+# Assigns Table formatted route information to $aclTable
+setACL() {
+	if [[ -n “$subnetId” ]]; then
+		aclId=`aws ec2 describe-network-acls --query "NetworkAcls[*].Associations[?SubnetId=='$subnetId'].NetworkAclId" --output text`
+		if [[ -z aclId ]]; then
+			aclId=`aws ec2 describe-network-acls --query "NetworkAcls[? VpcId=='$vpcId' && IsDefault].NetworkAclId" --output text`
+		fi
+	fi
+	
+	if [[ -n "$aclId" ]]; then
+		aclTableOutbound=`aws ec2 describe-network-acls --network-acl-ids acl-e66d4081 --query 'NetworkAcls[*].Entries[?Egress].{Cidr:CidrBlock,Rule:RuleAction,RuleNumber:RuleNumber}' --output table`
+		aclTableInbound=""
+	else
+		aclTableOutbound="No ACL associated with SG? a bug in code?"
+		aclTableOutbound="No ACL associated with SG? a bug in code?"
+	fi
+	
+}
+
+
+
+## F()::optionMain
+# Returns: The Main menu for users to dig deeper
 # Assumes: f()::instanceAttributes and F()::instanceAttributeTell ran already
 # Provides different options for investigation
 optionMain() {
 	PS3="Select from the list above if you want to know more about $instanceID: "
 	PS3Copy=$PS3
 	options=("Route Table" "View My Options Again" "Network ACL" "Security Group Information" "Quit")
-	#Main Menu Management
+	
+	### F()::optionMain::optionMenuRestore 
+	# Main Menu Management
 	optionMain=$(optionReviewer)
 	optionMenuRestore() {
-	echo "$PS3"
-	echo "$optionMain"
+		PS3=$PS3Copy
+		echo "$PS3"
+		echo "$optionMain"
 	}
-	
 	
 	select opt in "${options[@]}"
 	do
     	case $opt in
         	"Route Table")
         		optionRoute
-        		PS3=$PS3Copy
         		optionMenuRestore
             	;;
             "View My Options Again")
 				echo "$optionMain"
             	;;
        		"Network ACL")
-            	echo "$PS3"
+       			optionACL
+        		optionMenuRestore
             	;;
         	"Security Group Information")
             	optionSG
-            	PS3=$PS3Copy
             	optionMenuRestore
             	;;
         	"Quit")
@@ -158,6 +197,9 @@ optionMain() {
     	esac
 	done
 }
+
+
+
 ### F()::optionRoute
 # Returns: Options
 # Assumes: runs under F()::main
@@ -165,17 +207,18 @@ optionMain() {
 optionRoute() {
 	if [[ -z "$routeTable" ]]; then
 		setRoute
-	fi	
-	
+	fi
 	PS3="Select from the list above if you want to know more about $instanceID's Route: "
 	options=("View RouteID and Route Table" "View My Options Again" "Quit")
+	
 	select opt in "${options[@]}"
 	do
 	    case $opt in
 	        "View RouteID and Route Table")
             	echo "$instanceID routes via: $routeTableId"
             	echo "This is the route table:"
-            	echo "$routeTable"            	
+            	echo "$routeTable"
+            	optionReviewer           	
 	            ;;
 	        "View My Options Again")
             	optionReviewer
@@ -188,6 +231,45 @@ optionRoute() {
 	done
 }
 
+
+
+### F()::optionACL
+# Returns: Options
+# Assumes: runs under F()::main
+# Answers user query regarding ACL
+optionACL() {
+	#need if condition to find preexisting like others: (this is for run efficiency; do not want to search for something already found
+	if [[ -z "$aclTable" ]]; then
+	setACL
+	fi
+	
+	PS3="Select from the list above if you want to know more about $instanceID's ACL: "
+	options=("View Outbound ACL Rules" "View Inbound ACL Rules" "View My Options Again" "Quit")
+	
+	select opt in "${options[@]}"
+	do
+	    case $opt in
+	        "View Outbound ACL Rules")
+            	echo "$aclTableOutbound"
+            	optionReviewer
+	            ;;
+	        "View Inbound ACL Rules")
+            	echo "hmmmmm"
+            	optionReviewer
+	            ;;
+	        "View My Options Again")
+            	optionReviewer
+	            ;;
+	        "Quit")
+	            break
+	            ;;
+	        *) echo "invalid option $REPLY";;
+    	esac
+	done
+}
+
+
+
 ### F()::optionSG
 # Returns: Options
 # Assumes: runs under F()::main
@@ -199,18 +281,17 @@ optionSG() {
 	fi
 	
 	PS3="Select from the list above if you want to know more about $instanceID's Security Groups: "
-	options=("View Security Group List" "View My Options Again" "I Want to view the rules within a specific SG" "Quit")
+	options=("View Security Group List" "View My Options Again" "Quit")
+	
 	select opt in "${options[@]}"
 	do
 	    case $opt in
 	        "View Security Group List")
             	echo "$sgTable"
+            	optionReviewer
 	            ;;
 	        "View My Options Again")
             	optionReviewer
-	            ;;
-	        "I Want to view the rules within a specific SG")
-	            echo "$PS3"
 	            ;;
 	        "Quit")
 	            break
@@ -219,6 +300,8 @@ optionSG() {
     	esac
 	done
 }
+
+
 
 ### F()::optionReviewer
 # Returns: Options in Menu
