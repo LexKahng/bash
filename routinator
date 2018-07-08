@@ -40,17 +40,36 @@ main() {
 	instanceAttributes
 	getRoute
 	instanceAttributeTell
-	echo "$routes"
 	
 	#need case option function here after defining
 	#1) Show Route table
 	#2) Show ACL
 	#3) Show SG
 	#4) I want to see if my thingey can route to another thingey
-		
+	
+	PS3="Select from the list above if you want to know more about "$instanceID": "
+	options=("Route Table" "Network ACL" "Security Group Information" "Quit")
+	select opt in "${options[@]}"
+	do
+    	case $opt in
+        	"Route Table")
+            	echo "$routes"
+            	;;
+       		"Network ACL")
+            	echo "stahp"
+            	;;
+        	"Security Group Information")
+            	echo "dang it, hank"
+            	;;
+        	"Quit")
+            	break
+            	;;
+        	*) echo "invalid option $REPLY";;
+    	esac
+	done	
 
-set -u
-echo "Omega"
+	set -u
+	echo "Omega"
 }
 
 
@@ -92,13 +111,16 @@ getRoute() {
 # Assumes: f(instanceAttributes) ran already
 # (Optional) Returns instance attributes to the user 
 instanceAttributeTell() {
+echo "---------------------------------------------"
 echo "Instance type:	$instanceType"
 echo "Status:		$currentStatus"
 echo "Subnet:		$subnetId"
 echo "CiDr:		$cidrBlock"
 echo "AZ:		$availabilityZone"
-echo "RouteID:		$routeTableId"
+echo "RouteID:	$routeTableId"
 echo "VpcID:		$vpcId"
+echo "---------------------------------------------"
+
 }
 
 main "$@"
