@@ -7,11 +7,17 @@
 #***Assumes:AWS_PROFILE and AWS_REGION is already set***
 # For collaborators: Please refer to Variable Dictionary at the bottom
 ####################################################################################
-# To Do: Fix Main Menu, implement optionSG and optionRoute
-# Route Checker <-- option 4. Will involve 2nd EC2 instanceID input
+# Current To Do: 
+# Access Investigator: access to target ec2 investigation
+# variable convention: main variablename + 2 : eg. availabilityZone2
+# 	variable of the target will be local. global will mess shit up.
+# sub-option will have choice for ec2 input:
+# This will be used to check against the first instance. 
+#####################################################################################
+# Long term goals:
+# Access Investigator: for various types of resources (possibly check iam roles)
 # Input Validation for first option, or any string input. Expand the input type and
 # possibly node name
-# Issues: child --> parent ps3 and optionMain are not restored..
 ####################################################################################
 ### Main Section ###################################################################
 
@@ -55,12 +61,9 @@ subnetId=""
 routeTableId=""
 routeTable=""
 igwId=""
-vpcId=""
-
-## newly added 
+vpcId="" 
 sgTable=""
 sgLength=""
-## newest for acl
 aclTableOutbound=""
 aclTableInbound=""
 aclId=""
@@ -154,6 +157,16 @@ setACL() {
 
 
 
+### F()::setInv
+# Returns: Nothing
+# Role: Used by F()::optionInv
+# Assumes: f()::instanceAttributes ran already
+# 
+setInv() {
+}
+
+
+
 ## F()::optionMain
 # Returns: The Main menu for users to dig deeper
 # Assumes: f()::instanceAttributes and F()::instanceAttributeTell ran already
@@ -161,7 +174,7 @@ setACL() {
 optionMain() {
 	PS3="Select from the list above if you want to know more about $instanceID: "
 	PS3Copy=$PS3
-	options=("Route Table" "View My Options Again" "Network ACL" "Security Group Information" "Quit")
+	options=("Route Table" "Network ACL" "Security Group Information" "Access Investigator" "Quit")
 	
 	### F()::optionMain::optionMenuRestore 
 	# Main Menu Management
@@ -179,15 +192,19 @@ optionMain() {
         		optionRoute
         		optionMenuRestore
             	;;
-            "View My Options Again")
-				echo "$optionMain"
-            	;;
        		"Network ACL")
        			optionACL
         		optionMenuRestore
             	;;
         	"Security Group Information")
             	optionSG
+            	optionMenuRestore
+            	;;
+            "Access Investigator")
+            	echo "workin on it piss off"
+            	#Require prompting user input for ec2
+            	#sub-option specific to route to ec2
+            	#rest will be for other resource; each code is resource-specific, so done this way.
             	optionMenuRestore
             	;;
         	"Quit")
@@ -209,7 +226,7 @@ optionRoute() {
 		setRoute
 	fi
 	PS3="Select from the list above if you want to know more about $instanceID's Route: "
-	options=("View RouteID and Route Table" "View My Options Again" "Quit")
+	options=("View RouteID and Route Table" "Back to Main")
 	
 	select opt in "${options[@]}"
 	do
@@ -220,10 +237,7 @@ optionRoute() {
             	echo "$routeTable"
             	optionReviewer           	
 	            ;;
-	        "View My Options Again")
-            	optionReviewer
-	            ;;
-	        "Quit")
+	        "Back to Main")
 	            break
 	            ;;
 	        *) echo "invalid option $REPLY";;
@@ -244,7 +258,7 @@ optionACL() {
 	fi
 	
 	PS3="Select from the list above if you want to know more about $instanceID's ACL: "
-	options=("View Outbound ACL Rules" "View Inbound ACL Rules" "View My Options Again" "Quit")
+	options=("View Outbound ACL Rules" "View Inbound ACL Rules" "Back to Main")
 	
 	select opt in "${options[@]}"
 	do
@@ -257,10 +271,7 @@ optionACL() {
             	echo "hmmmmm"
             	optionReviewer
 	            ;;
-	        "View My Options Again")
-            	optionReviewer
-	            ;;
-	        "Quit")
+	        "Back to Main")
 	            break
 	            ;;
 	        *) echo "invalid option $REPLY";;
@@ -281,7 +292,7 @@ optionSG() {
 	fi
 	
 	PS3="Select from the list above if you want to know more about $instanceID's Security Groups: "
-	options=("View Security Group List" "View My Options Again" "Quit")
+	options=("View Security Group List" "Back to Main")
 	
 	select opt in "${options[@]}"
 	do
@@ -290,10 +301,7 @@ optionSG() {
             	echo "$sgTable"
             	optionReviewer
 	            ;;
-	        "View My Options Again")
-            	optionReviewer
-	            ;;
-	        "Quit")
+	        "Back to Main")
 	            break
 	            ;;
 	        *) echo "invalid option $REPLY";;
@@ -301,11 +309,18 @@ optionSG() {
 	done
 }
 
+### F()::optionInv
+# Returns: Options
+# Assumes: runs under F()::main
+# Answers user query regarding Access investigator
+optionInv() {
+}
+
 
 
 ### F()::optionReviewer
-# Returns: Options in Menu
-# Assumes: Triggered within the menu (case)
+# Returns: Displays options of current Menu
+# Assumes: Triggered within menus (case) Assumes $options is assigned
 optionReviewer() {
 echo "Here are your current options:"
 counter=1
