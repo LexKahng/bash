@@ -3,7 +3,7 @@
 ### Purpose & Overview #############################################################
 #The script will be used to retrieve network resource relationships to the instance. 
 #The script currently takes instanceID as input.
-#
+#***Assumes:AWS_PROFILE and AWS_REGION is already set***
 ####################################################################################
 ### instance type, running state, subnet, az #######################################
 ### Variable Dictionary
@@ -15,43 +15,44 @@
 #routes - Stores Table format of the Routes
 ####################################################################################
 ### Variable Instantiation #########################################################
-instanceType=""
-currentStatus=""
-subnetId=""
 availabilityZone=""
+cidrBlock=""
+currentStatus=""
+instanceID=""
+instanceType=""
+subnetId=""
 routeTableId=""
 routes=""
+igwId=""
+vpcId=""
+
+## newly added 
+sgList=""
+acl=""
+caseMaster=""
 ####################################################################################
 ### Code Section ###################################################################
 
 main() {
 	read -p "Enter that instanceID: " instanceID
-
+	
+	#Run the Alpha functions
 	instanceAttributes
+	getRoute
 	instanceAttributeTell
-
-	if [[ -z "$routeTableId" ]]; then
-		echo "The instance is using the main route table."
-	else
-		echo "$routeTableId" is the routeTableID of the instance.
-		echo "$routes"
-	fi
-
-#interactive query to find if user wantes this answer.
-#read -p "Do you want to find the routes? (y/n) " wantsRoute
-#while [[ "$wantsRoute" != [nNyY] ]]; do
-#        read -p "You gotta enter \"y\" or \"n\": " wantsRoute
-#        if [[ wantsRoute == [nN] ]]; then
-#			echo "fine. be that way"
-#		else
-#			echo $routes
-#		fi
-#done
-
+	echo "$routes"
+	
+	#need case option function here after defining
+	#1) Show Route table
+	#2) Show ACL
+	#3) Show SG
+	#4) I want to see if my thingey can route to another thingey
+		
 
 set -u
-echo "end of test."
+echo "Omega"
 }
+
 
 
 
@@ -59,33 +60,42 @@ echo "end of test."
 
 ####################################################################################
 ### Global Stuffs ##################################################################
-### F()::instanceAttributes 
-# User's instance attributes are stored for processing.
+### F()::instanceAttributes
+# Assumes: This needs to be run first to set up core attributes for the instance input 
+# User's instance attributes are stored for processing
 instanceAttributes() {
 	instanceType=`aws ec2 describe-instances --instance-id $instanceID --query 'Reservations[*].Instances[*].[InstanceType]' --output text`
 	currentStatus=`aws ec2 describe-instances --instance-ids $instanceID --query 'Reservations[*].Instances[*].[State.Name]' --output text`
 	subnetId=`aws ec2 describe-instances --instance-ids $instanceID --query 'Reservations[*].Instances[*].[SubnetId]' --output text`
 	availabilityZone=`aws ec2 describe-instances --instance-ids $instanceID --query 'Reservations[*].Instances[*].[Placement.AvailabilityZone]' --output text`
 	routeTableId=`aws ec2 describe-route-tables --query "RouteTables[*].Associations[?SubnetId=='$subnetId'].RouteTableId" --output text`
-	CidrBlock=`aws ec2 describe-subnets --query "Subnets[?SubnetId=='subnet-7015b539'].CidrBlock" --output text`
-	vpcId=`aws ec2 describe-instances --instance-ids $instanceID --query 'Reservations[*].Instances[*].[VpcId]' --output text`	
-	
-	#find the routes
+	cidrBlock=`aws ec2 describe-subnets --query "Subnets[?SubnetId=='subnet-7015b539'].CidrBlock" --output text`
+	vpcId=`aws ec2 describe-instances --instance-ids $instanceID --query 'Reservations[*].Instances[*].[VpcId]' --output text`		
+}
+
+
+### F()::getRoute
+# Returns: Nothing
+# Assumes: f(instanceAttributes) ran already
+# Assigns Table formatted route information to $routes
+getRoute() {
 	if [[ -z "$routeTableId" ]]; then
 		routeTableId=`aws ec2 describe-route-tables --query "RouteTables[*].Associations[?Main].RouteTableId" --output text`
-		routes=`aws ec2 describe-route-tables --route-table-ids $routeTableId --query "RouteTables[*].Routes[*]" --output table`
-	else
-		routes=`aws ec2 describe-route-tables --route-table-ids $routeTableId --query "RouteTables[*].Routes[*]" --output table`
-		echo "This is the Route Table: \n $routes"
 	fi
+	routes=`aws ec2 describe-route-tables --route-table-ids $routeTableId --query "RouteTables[*].Routes[*].{Destination:DestinationCidrBlock,Target:GatewayId,State:State}" --output table`
+	igwId=`aws ec2 describe-route-tables --route-table-ids $routeTableId --query "RouteTables[*].Routes[*].GatewayId" --output text | grep -o '\bigw-\w*'`
 }
+
+
 ### F()::instanceAttributes
-# (Optional) Returns instance attributes to the user. 
+# Returns: String
+# Assumes: f(instanceAttributes) ran already
+# (Optional) Returns instance attributes to the user 
 instanceAttributeTell() {
 echo "Instance type:	$instanceType"
 echo "Status:		$currentStatus"
 echo "Subnet:		$subnetId"
-echo "CiDr:		$CidrBlock"
+echo "CiDr:		$cidrBlock"
 echo "AZ:		$availabilityZone"
 echo "RouteID:		$routeTableId"
 echo "VpcID:		$vpcId"
