@@ -300,9 +300,10 @@ optionSG() {
 	if [[ -z "$sgLength" ]]; then
 		setSG
 	fi
-	
+	#sgIdIngressTable=""
+	#sgIdEgressTable=""
 	PS3="Select from the list above if you want to know more about $instanceID's Security Groups: "
-	options=("View Security Group List" "Back to Main")
+	options=("View Security Group List" "View a specific Group" "Back to Main")
 	
 	select opt in "${options[@]}"
 	do
@@ -311,6 +312,15 @@ optionSG() {
             	echo "$sgTable"
             	optionReviewer
 	            ;;
+	        "View a specific Group")
+	        	read -p "Enter the SG ID: " sgID
+	        	echo "$sgID"
+	        	sgIdIngressTable=`aws ec2 describe-security-groups --query "SecurityGroups[? GroupId=='$sgID'].IpPermissions[*].{FromPort:FromPort,IpRanges:IpRanges[0].CidrIp,IpProtocol:IpProtocol}" --output table`
+	        	sgIdEgressTable=`aws ec2 describe-security-groups --query "SecurityGroups[? GroupId=='$sgID'].IpPermissionsEgress[*].{FromPort:FromPort,IpRanges:IpRanges[0].CidrIp,IpProtocol:IpProtocol}" --output table`
+	        	echo "$sgIdIngressTable"
+	        	echo "$sgIdEgressTable"
+	        	optionReviewer
+	        	;;
 	        "Back to Main")
 	            break
 	            ;;
