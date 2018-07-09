@@ -23,10 +23,15 @@
 ### Main Section ###################################################################
 
 main() {
-	read -p "Enter that instanceID: " instanceID
+	instanceID=""
+	while [[ -z "$instanceID" ]]; do
+		read -p "Enter that instanceID: " instanceID
+	done
 	
 	#Run the Alpha functions
-	instanceAttributes
+	secondaryResourceSet=false
+	primaryResourceSet=false
+	instanceAttributes $instanceID
 	instanceAttributeTell
 	
 	#need case option function here after defining
@@ -38,7 +43,7 @@ main() {
 		
 
 	set -u
-	echo "Omega"
+	echo "Don't quit on me now... :("
 }
 
 
@@ -52,7 +57,8 @@ main() {
 #routeTableId - Stores Route Table ID
 #routeTable - Stores Table format of the routeTable
 ####################################################################################
-### Variable Instantiation #########################################################
+### Global Variable Instantiation ##################################################
+### (Trying to remove global varialbes if possible) ################################
 availabilityZone=""
 cidrBlock=""
 currentStatus=""
@@ -68,6 +74,8 @@ sgLength=""
 aclTableOutbound=""
 aclTableInbound=""
 aclId=""
+secondaryResourceSet=false
+primaryResourceSet=false
 
 ####################################################################################
 ### Global Stuffs ##################################################################
@@ -79,28 +87,72 @@ aclId=""
 # Role: Used by F()::optionInv
 # Assumes: f()::instanceAttributes ran already
 # 
-#setInv() {
-#}
+setInv() {
+	invTarget=""
+	#inputValid=false
+	#put $inputValid as one of While condition (while empty input or wrong input, do)
+	while [[ -z "$invTarget" ]]; do
+		read -p "Enter instanceID you want to test connectivity for: " invTarget
+	done
+	instanceAttributes $invTarget
+	instanceAttributeTell
+}
 
 ### F()::optionInv
 # Returns: Options
 # Assumes: runs under F()::main
 # Answers user query regarding Access investigator
-#optionInv() {
-#}
+optionInv() {
+	setInv
+	echo "Testing against target: $invTarget"
+	PS3="Choose an option from above to test against $invTarget: "
+	options=("Show me the route table of $invTarget" "Back to Main")
+	
+	select opt in "${options[@]}"
+	do
+	    case $opt in
+	        "Show me the route table of $invTarget")
+	        	#testing
+	        	echo "$secondaryResourceSet"
+            	optionReviewer           	
+	            ;;
+	        "Back to Main")
+	        	secondaryResourceSet=false
+	            break
+	            ;;
+	        *) echo "invalid option $REPLY";;
+    	esac
+	done
+	
+}
 ####################################################################################
 
 
 ### F()::instanceAttributes
 # Assumes: This needs to be run first to set up core attributes for the instance input 
 # User's instance attributes are stored for processing
+# condition: runs for primary instance if attributes are not set.
+# need to refactor to make this function act globally and use local variable to assign global variable conditionally
 instanceAttributes() {
-	instanceType=`aws ec2 describe-instances --instance-id $instanceID --query 'Reservations[*].Instances[*].[InstanceType]' --output text`
-	currentStatus=`aws ec2 describe-instances --instance-ids $instanceID --query 'Reservations[*].Instances[*].[State.Name]' --output text`
-	subnetId=`aws ec2 describe-instances --instance-ids $instanceID --query 'Reservations[*].Instances[*].[SubnetId]' --output text`
-	availabilityZone=`aws ec2 describe-instances --instance-ids $instanceID --query 'Reservations[*].Instances[*].[Placement.AvailabilityZone]' --output text`
-	cidrBlock=`aws ec2 describe-subnets --query "Subnets[?SubnetId=='$subnetId'].CidrBlock" --output text`
-	vpcId=`aws ec2 describe-instances --instance-ids $instanceID --query 'Reservations[*].Instances[*].[VpcId]' --output text`
+	if [[ $primaryResourceSet = false ]]; then	
+		instanceType=`aws ec2 describe-instances --instance-id $1 --query 'Reservations[*].Instances[*].[InstanceType]' --output text`
+		currentStatus=`aws ec2 describe-instances --instance-ids $1 --query 'Reservations[*].Instances[*].[State.Name]' --output text`
+		subnetId=`aws ec2 describe-instances --instance-ids $1 --query 'Reservations[*].Instances[*].[SubnetId]' --output text`
+		availabilityZone=`aws ec2 describe-instances --instance-ids $1 --query 'Reservations[*].Instances[*].[Placement.AvailabilityZone]' --output text`
+		cidrBlock=`aws ec2 describe-subnets --query "Subnets[?SubnetId=='$subnetId'].CidrBlock" --output text`
+		vpcId=`aws ec2 describe-instances --instance-ids $1 --query 'Reservations[*].Instances[*].[VpcId]' --output text`
+		primaryResourceSet=true	
+	elif [[ $secondaryResourceSet = false ]]; then
+		testing="test"
+		instanceTypeTarget=`aws ec2 describe-instances --instance-id $1 --query 'Reservations[*].Instances[*].[InstanceType]' --output text`
+		currentStatusTarget=`aws ec2 describe-instances --instance-ids $1 --query 'Reservations[*].Instances[*].[State.Name]' --output text`
+		subnetIdTarget=`aws ec2 describe-instances --instance-ids $1 --query 'Reservations[*].Instances[*].[SubnetId]' --output text`
+		availabilityZoneTarget=`aws ec2 describe-instances --instance-ids $1 --query 'Reservations[*].Instances[*].[Placement.AvailabilityZone]' --output text`
+		cidrBlockTarget=`aws ec2 describe-subnets --query "Subnets[?SubnetId=='$subnetIdTarget'].CidrBlock" --output text`
+		vpcIdTarget=`aws ec2 describe-instances --instance-ids $1 --query 'Reservations[*].Instances[*].[VpcId]' --output text`
+		# this resource will be unset on any where instanceAttributes is called
+		secondaryResourceSet=true
+	fi
 }
 
 
@@ -108,16 +160,28 @@ instanceAttributes() {
 ### F()::instanceAttributeTell
 # Returns: String
 # Assumes: f()::instanceAttributes ran already
-# (Optional) Returns instance attributes to the user 
+# (Optional) Returns instance attributes to the user
+# Currently used for instance investigation only 
 instanceAttributeTell() {
-echo "---------------------------------------------"
-echo "Instance type:	$instanceType"
-echo "Status:		$currentStatus"
-echo "Subnet:		$subnetId"
-echo "Cidr:		$cidrBlock"
-echo "AZ:		$availabilityZone"
-echo "VpcID:		$vpcId"
-echo "---------------------------------------------"
+if [[ $secondaryResourceSet = true ]]; then
+	echo "---------------------------------------------"
+	echo "Instance type:	$instanceTypeTarget"
+	echo "Status:		$currentStatusTarget"
+	echo "Subnet:		$subnetIdTarget"
+	echo "Cidr:		$cidrBlockTarget"
+	echo "AZ:		$availabilityZoneTarget"
+	echo "VpcID:		$vpcIdTarget"
+	echo "---------------------------------------------"
+else
+	echo "---------------------------------------------"
+	echo "Instance type:	$instanceType"
+	echo "Status:		$currentStatus"
+	echo "Subnet:		$subnetId"
+	echo "Cidr:		$cidrBlock"
+	echo "AZ:		$availabilityZone"
+	echo "VpcID:		$vpcId"
+	echo "---------------------------------------------"
+fi
 }
 
 
@@ -211,10 +275,8 @@ optionMain() {
             	optionMenuRestore
             	;;
             "Access Investigator")
-            	echo "workin on it piss off"
-            	#Require prompting user input for ec2
-            	#sub-option specific to route to ec2
-            	#rest will be for other resource; each code is resource-specific, so done this way.
+            	#currently being worked on
+            	optionInv
             	optionMenuRestore
             	;;
         	"Quit")
@@ -300,25 +362,26 @@ optionSG() {
 	if [[ -z "$sgLength" ]]; then
 		setSG
 	fi
+	echo "$sgTable"
 	#sgIdIngressTable=""
 	#sgIdEgressTable=""
 	PS3="Select from the list above if you want to know more about $instanceID's Security Groups: "
-	options=("View Security Group List" "View a specific Group" "Back to Main")
+	options=("View a specific Group" "Back to Main")
 	
 	select opt in "${options[@]}"
 	do
 	    case $opt in
-	        "View Security Group List")
-            	echo "$sgTable"
-            	optionReviewer
-	            ;;
 	        "View a specific Group")
 	        	read -p "Enter the SG ID: " sgID
-	        	echo "$sgID"
+	        	echo "Viewing Rules for: $sgID"
 	        	sgIdIngressTable=`aws ec2 describe-security-groups --query "SecurityGroups[? GroupId=='$sgID'].IpPermissions[*].{FromPort:FromPort,IpRanges:IpRanges[0].CidrIp,IpProtocol:IpProtocol}" --output table`
 	        	sgIdEgressTable=`aws ec2 describe-security-groups --query "SecurityGroups[? GroupId=='$sgID'].IpPermissionsEgress[*].{FromPort:FromPort,IpRanges:IpRanges[0].CidrIp,IpProtocol:IpProtocol}" --output table`
+	        	echo "## This is the Inbound Table ##########################"
 	        	echo "$sgIdIngressTable"
+	        	echo "## This is the Outbound Table ##########################"
 	        	echo "$sgIdEgressTable"
+	        	echo "## End ################################################"
+	        	echo "$sgTable"
 	        	optionReviewer
 	        	;;
 	        "Back to Main")
