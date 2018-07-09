@@ -72,6 +72,25 @@ aclId=""
 ####################################################################################
 ### Global Stuffs ##################################################################
 
+### In progress ####################################################################
+
+### F()::setInv
+# Returns: Nothing
+# Role: Used by F()::optionInv
+# Assumes: f()::instanceAttributes ran already
+# 
+#setInv() {
+#}
+
+### F()::optionInv
+# Returns: Options
+# Assumes: runs under F()::main
+# Answers user query regarding Access investigator
+#optionInv() {
+#}
+####################################################################################
+
+
 ### F()::instanceAttributes
 # Assumes: This needs to be run first to set up core attributes for the instance input 
 # User's instance attributes are stored for processing
@@ -147,23 +166,13 @@ setACL() {
 	fi
 	
 	if [[ -n "$aclId" ]]; then
-		aclTableOutbound=`aws ec2 describe-network-acls --network-acl-ids acl-e66d4081 --query 'NetworkAcls[*].Entries[?Egress].{Cidr:CidrBlock,Rule:RuleAction,RuleNumber:RuleNumber}' --output table`
-		aclTableInbound=""
+		aclTableOutbound=`aws ec2 describe-network-acls --network-acl-ids "$aclId" --query 'NetworkAcls[*].Entries[?Egress].{Cidr:CidrBlock,Rule:RuleAction,RuleNumber:RuleNumber}' --output table`
+		aclTableInbound=$(aws ec2 describe-network-acls --network-acl-ids acl-e66d4081 --query 'NetworkAcls[*].Entries[?Egress==`false`].{Cidr:CidrBlock,Rule:RuleAction,RuleNumber:RuleNumber}' --output table)
 	else
 		aclTableOutbound="No ACL associated with SG? a bug in code?"
 		aclTableOutbound="No ACL associated with SG? a bug in code?"
 	fi
 	
-}
-
-
-
-### F()::setInv
-# Returns: Nothing
-# Role: Used by F()::optionInv
-# Assumes: f()::instanceAttributes ran already
-# 
-setInv() {
 }
 
 
@@ -269,7 +278,7 @@ optionACL() {
             	optionReviewer
 	            ;;
 	        "View Inbound ACL Rules")
-            	echo "hmmmmm"
+            	echo "$aclTableInbound"
             	optionReviewer
 	            ;;
 	        "Back to Main")
@@ -308,13 +317,6 @@ optionSG() {
 	        *) echo "invalid option $REPLY";;
     	esac
 	done
-}
-
-### F()::optionInv
-# Returns: Options
-# Assumes: runs under F()::main
-# Answers user query regarding Access investigator
-optionInv() {
 }
 
 
