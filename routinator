@@ -1,11 +1,12 @@
 #!/bin/bash
 ####################################################################################
 # Author: Daniel Kahng #############################################################
-# Ver: 0.1 #########################################################################
+# Ver: 0.1.1 #######################################################################
 ### Purpose & Overview #############################################################
 # The script will be used to retrieve network resource relationships to the instance. 
 # The script currently takes instanceID as input.
-#***Assumes:AWS_PROFILE and AWS_REGION is already set***
+#*** Assumes:AWS_PROFILE and AWS_REGION is already set ***
+#*** Assumes: nmap installed ***
 # For collaborators: Please refer to Variable Dictionary at the bottom
 ####################################################################################
 # Current To Do: 
@@ -65,9 +66,7 @@ currentStatus=""
 instanceID=""
 instanceType=""
 subnetId=""
-routeTableId=""
-routeTable=""
-igwId=""
+routeTableMain=""
 vpcId="" 
 sgTable=""
 sgLength=""
@@ -103,19 +102,26 @@ setInv() {
 # Assumes: runs under F()::main
 # Answers user query regarding Access investigator
 optionInv() {
+
+	#may need to add local variable to segregate this function for reuse
 	setInv
 	echo "Testing against target: $invTarget"
 	PS3="Choose an option from above to test against $invTarget: "
-	options=("Show me the route table of $invTarget" "Back to Main")
+	options=("Show me the route table of $invTarget" "I want to check if I can route to the instance" "Back to Main")
 	
 	select opt in "${options[@]}"
 	do
 	    case $opt in
 	        "Show me the route table of $invTarget")
-	        	#testing
+	        	#to be completed later
 	        	echo "$secondaryResourceSet"
-            	optionReviewer           	
+            	optionReviewer	
 	            ;;
+	        "I want to check if I can route to the instance")
+	        	routeChecker
+	        	unset routeChecker
+	        	optionReviewer
+	        	;;
 	        "Back to Main")
 	        	secondaryResourceSet=false
 	            break
@@ -124,6 +130,59 @@ optionInv() {
     	esac
 	done
 	
+}
+
+
+
+### F()::routeChecker
+# Returns: Options
+# Assumes: runs under F()::main
+# Answers user query regarding Access investigator
+routeChecker() {
+	#1) if vpc different, then check vpc peering; else check routing
+	#2) After vpc checked: if subnet-ID same, they can communicate 
+	#3) if subnet id is different, check route to destination with target local and verify cidr. done for both
+	local routeTableId=""
+	local routeTable=""
+	local igwId=""
+	local routeTableTarget=""
+	sameVPCBool=false
+	sameSubnetBool=false
+	
+	
+	echo "## Results ############################################"
+	#1) vpc check
+	if [[ "$vpcId" == "$vpcIdTarget" ]]; then
+		sameVPCBool=true
+		echo "They are both under the same vpc. Commencing..."
+	fi
+	
+	#2) subnet check
+	if [[ "$subnetId" == "$subnetIdTarget" ]]; then
+		#sameSubnetBool=true
+		echo "They are under the same subnet. They can route to each other"
+	else
+		echo "They are under a different subnet. Checking route now..."
+		setRoute "$subnetIdTarget"
+		routeTableTarget="$routeTable"
+		#If $routeTableMain was never stored (for main instance we are checking against)
+		if [[ -z "$routeTableMain" ]]; then
+			routeTableId=""
+			routeTable=""
+			igwId=""
+			setRoute "$subnetId"
+			routeTableMain="$routeTable"
+		fi
+	fi
+
+	echo "This is the route table of the source:"
+	echo "## Source #############################################"
+	echo "$routeTableMain"
+	echo "This is the route table of the target:"
+	echo "## Target #############################################"
+	echo "$routeTableTarget"	
+	echo "Checking routability..."
+	echo "## End ################################################"
 }
 ####################################################################################
 
@@ -143,7 +202,6 @@ instanceAttributes() {
 		vpcId=`aws ec2 describe-instances --instance-ids $1 --query 'Reservations[*].Instances[*].[VpcId]' --output text`
 		primaryResourceSet=true	
 	elif [[ $secondaryResourceSet = false ]]; then
-		testing="test"
 		instanceTypeTarget=`aws ec2 describe-instances --instance-id $1 --query 'Reservations[*].Instances[*].[InstanceType]' --output text`
 		currentStatusTarget=`aws ec2 describe-instances --instance-ids $1 --query 'Reservations[*].Instances[*].[State.Name]' --output text`
 		subnetIdTarget=`aws ec2 describe-instances --instance-ids $1 --query 'Reservations[*].Instances[*].[SubnetId]' --output text`
@@ -187,12 +245,13 @@ fi
 
 
 ### F()::setRoute
+# Receives: Subnet ID as input
 # Returns: Nothing
 # Role: Used by F()::optionRoute
 # Assumes: f(instanceAttributes) ran already
 # Retrieves the instance route information
 setRoute() {
-	routeTableId=`aws ec2 describe-route-tables --query "RouteTables[*].Associations[?SubnetId=='$subnetId'].RouteTableId" --output text`
+	routeTableId=`aws ec2 describe-route-tables --query "RouteTables[*].Associations[?SubnetId=='$1'].RouteTableId" --output text`
 	if [[ -z "$routeTableId" ]]; then
 		#This is done because implicitly associated route tables will return null. If null, uses VPC default
 		#the below association have not yet been checked for VPC specificity, meaning it may return wrong value 
@@ -294,8 +353,17 @@ optionMain() {
 # Assumes: runs under F()::main
 # Answers user query regarding instance routing
 optionRoute() {
-	if [[ -z "$routeTable" ]]; then
-		setRoute
+	local routeTableId=""
+	local routeTable=""
+	local igwId=""
+	if [[ -z "$routeTableMain" ]]; then
+		if [[ secondaryResourceSet = true ]]; then
+			setRoute "$subnetIdTarget"
+			routeTableTarget="$routeTable"
+		else
+			setRoute "$subnetId"
+			routeTableMain="$routeTable"			
+		fi
 	fi
 	PS3="Select from the list above if you want to know more about $instanceID's Route: "
 	options=("View RouteID and Route Table" "Back to Main")
@@ -326,7 +394,7 @@ optionRoute() {
 optionACL() {
 	#need if condition to find preexisting like others: (this is for run efficiency; do not want to search for something already found
 	if [[ -z "$aclTable" ]]; then
-	setACL
+		setACL
 	fi
 	
 	PS3="Select from the list above if you want to know more about $instanceID's ACL: "
