@@ -1,6 +1,6 @@
 #!/bin/bash
 
-declare -a regionList=("element1" "us-east-1" "us-west-1" "us-west-2" "ap-northeast-1" "ap-northeast-2" "ap-northeast-3" "ap-south-1" "ap-southeast-1" "ap-southeast-2" "ca-central-1" "cn-north-1" "cn-northwest-1" "eu-central-1" "eu-west-1" "eu-west-2" "eu-west-3" "sa-east-1")
+declare -a regionList=("us-east-1" "us-west-1" "us-west-2" "ap-northeast-1" "ap-northeast-2" "ap-northeast-3" "ap-south-1" "ap-southeast-1" "ap-southeast-2" "ca-central-1" "cn-north-1" "cn-northwest-1" "eu-central-1" "eu-west-1" "eu-west-2" "eu-west-3" "sa-east-1")
 read -p "Enter the instance Hostname: " hostname
 shortcode=${hostname:0:4}
 region="eu-west-1"
@@ -44,9 +44,9 @@ if [[ "$addConfigResponse" == [Yy] ]]; then
 	#building profile
 	echo "" >> $HOME/.aws/testFile
 	echo "[profile $shortcode]" >> $HOME/.aws/testFile
-	echo "role_arn = arn:aws:iam::$accNumber:role/CloudreachAdminRole" >> $HOME/.aws/testFile
+	echo "role_arn = arn:aws:iam::$accNumber:role/CloudreachAdminRole" >> $HOME/.aws/config
 	echo "source_profile = default" >> $HOME/.aws/testFile
-	echo "mfa_serial = arn:aws:iam::540625458825:mfa/$awsUserName" >> $HOME/.aws/testFile
+	echo "mfa_serial = arn:aws:iam::540625458825:mfa/$awsUserName" >> $HOME/.aws/config
 	echo "output = json" >> $HOME/.aws/testFile
 	echo "region = $region" >> $HOME/.aws/testFile
 	echo "Profile has been created"
