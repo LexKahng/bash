@@ -143,6 +143,9 @@ routeChecker() {
 	local routeTable=""
 	local igwId=""
 	local routeTableTarget=""
+	local vpcMatch=false
+	local peeredVpcTable=""
+	local peeredVpcText=""
 	sameVPCBool=false
 	sameSubnetBool=false
 	
@@ -172,12 +175,30 @@ routeChecker() {
 		echo "## Target #############################################"
 		echo "$routeTableTarget"	
 		echo "Checking routability..."
-
-		# skip first line in the subnet (default) and then compare
-		# 	tempstore=$(nmap -sL 10.10.64.0/27 | grep "Nmap scan report" | awk '{print $NF}')
-		# 	tempstore="$tempstore\n10.10.64.31"
-		# 	echo $tempstore
+		echo "Following are the peered VPC's"
+		peeredVpcTable=`aws ec2 describe-vpc-peering-connections --query "VpcPeeringConnections[? Status.Code=='active'].{Acceptor:AccepterVpcInfo.VpcId,Requestor:RequesterVpcInfo.VpcId}" --output table`
+		peeredVpcText=`aws ec2 describe-vpc-peering-connections --query "VpcPeeringConnections[? Status.Code=='active'].{Acceptor:AccepterVpcInfo.VpcId,Requestor:RequesterVpcInfo.VpcId}" --output text`
+		echo "$peeredVpcTable"
 		
+		##below doesnt work yet
+		# if [[ -n "$peeredVpcText" ]]; then
+# 			for line in $peeredVpcText; do
+# 				temp=$(awk '{print $1}' <<< "$line")
+# 				if [[ "$temp" == "$vpcIdTarget" ]]; then
+# 					if [[ "$temp" == "$vpcId" ]]; then
+# 						vpcMatch=true
+# 					fi
+# 				fi
+# 			done
+# 			unset temp
+# 			
+# 			if [[ $vpcMatch = true ]]; then
+# 				echo "There is connectivity"
+# 				echo "$peeredVpcTable"
+# 			fi
+# 		else
+# 			echo "There is no connectivity between the 2 instances at the AWS infrastructure level"
+# 		fi
 	fi
 
 
