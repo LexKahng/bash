@@ -24,6 +24,8 @@
 ### Main Section ###################################################################
 
 main() {
+	SWITCHROLE_SCRIPT_PATH="$HOME/bash/switchrole"
+	exec "$SWITCHROLE_SCRIPT_PATH"
 	instanceID=""
 	while [[ -z "$instanceID" ]]; do
 		read -p "Enter that instanceID: " instanceID
