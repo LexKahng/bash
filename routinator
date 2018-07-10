@@ -26,7 +26,15 @@
 main() {
 	#SWITCHROLE_SCRIPT_PATH="$HOME/bash/switchrole"
 	#exec "$SWITCHROLE_SCRIPT_PATH"
-	switchrole
+	read -p "Do you want to run switchrole first? (y/n): " switchroleQ
+	while [[ ! "$switchroleQ" == [nNyY] ]]; do
+		read -p "Please answer with y or n. " switchroleQ
+	done
+
+	if [[ "$switchroleQ" == [yY] ]]; then
+		switchrole
+	fi
+
 	instanceID=""
 	while [[ -z "$instanceID" ]]; do
 		read -p "Enter that instanceID: " instanceID
