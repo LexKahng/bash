@@ -139,9 +139,6 @@ optionInv() {
 # Assumes: runs under F()::main
 # Answers user query regarding Access investigator
 routeChecker() {
-	#1) if vpc different, then check vpc peering; else check routing
-	#2) After vpc checked: if subnet-ID same, they can communicate 
-	#3) if subnet id is different, check route to destination with target local and verify cidr. done for both
 	local routeTableId=""
 	local routeTable=""
 	local igwId=""
@@ -154,15 +151,10 @@ routeChecker() {
 	#1) vpc check
 	if [[ "$vpcId" == "$vpcIdTarget" ]]; then
 		sameVPCBool=true
-		echo "They are both under the same vpc. Commencing..."
-	fi
-	
-	#2) subnet check
-	if [[ "$subnetId" == "$subnetIdTarget" ]]; then
-		#sameSubnetBool=true
-		echo "They are under the same subnet. They can route to each other"
+		echo "They are both under the same vpc. They can route to each other."
+
 	else
-		echo "They are under a different subnet. Checking route now..."
+		echo "They are under a different VPC. Checking route now..."
 		setRoute "$subnetIdTarget"
 		routeTableTarget="$routeTable"
 		#If $routeTableMain was never stored (for main instance we are checking against)
@@ -173,15 +165,24 @@ routeChecker() {
 			setRoute "$subnetId"
 			routeTableMain="$routeTable"
 		fi
+		echo "This is the route table of the source:"
+		echo "## Source #############################################"
+		echo "$routeTableMain"
+		echo "This is the route table of the target:"
+		echo "## Target #############################################"
+		echo "$routeTableTarget"	
+		echo "Checking routability..."
+
+		# skip first line in the subnet (default) and then compare
+		# 	tempstore=$(nmap -sL 10.10.64.0/27 | grep "Nmap scan report" | awk '{print $NF}')
+		# 	tempstore="$tempstore\n10.10.64.31"
+		# 	echo $tempstore
+		
 	fi
 
-	echo "This is the route table of the source:"
-	echo "## Source #############################################"
-	echo "$routeTableMain"
-	echo "This is the route table of the target:"
-	echo "## Target #############################################"
-	echo "$routeTableTarget"	
-	echo "Checking routability..."
+
+	
+	
 	echo "## End ################################################"
 }
 ####################################################################################
