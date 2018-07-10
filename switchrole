@@ -9,20 +9,26 @@ shortcode=$(echo $shortcode | awk '{print toupper($0)}')
 
 read -p "Enter the region. Default is $region : Leave blank to set default: " regionResponse
 while [[ $regionExists = false ]]; do
+	
 	if [[ -n "$regionResponse" ]]; then
-		for i in "${regionList[@]}"; do
+		for i in "${regionList[@]}"; do	
+						
 			if [[ "$i" == "$region" ]]; then
 				regionExists=true
 				region=$regionResponse
+				break
 			fi
+		
 		done
 	else
 		regionExists=true
-	fi
-	if [[ "$regionExists" = false ]]; then
-		read -p "Region does not exist. Make sure it is in lower case. e.g. eu-west-1: " regionResponse
+		echo "test2"
 	fi
 done
+
+if [[ "$regionExists" = false ]]; then
+	read -p "Region does not exist. Make sure it is in lower case. e.g. eu-west-1: " regionResponse
+fi
 
 shortcodeConfigCheck=$(grep -rnw "$HOME/.aws/config" -e "$shortcode")
 if [[ -z $shortcodeConfigCheck ]]; then
@@ -42,13 +48,13 @@ if [[ "$addConfigResponse" == [Yy] ]]; then
 		read -p "You must enter a number: " accNumber
 	done
 	#building profile
-	echo "" >> $HOME/.aws/testFile
-	echo "[profile $shortcode]" >> $HOME/.aws/testFile
+	echo "" >> $HOME/.aws/config
+	echo "[profile $shortcode]" >> $HOME/.aws/config
 	echo "role_arn = arn:aws:iam::$accNumber:role/CloudreachAdminRole" >> $HOME/.aws/config
-	echo "source_profile = default" >> $HOME/.aws/testFile
+	echo "source_profile = default" >> $HOME/.aws/config
 	echo "mfa_serial = arn:aws:iam::540625458825:mfa/$awsUserName" >> $HOME/.aws/config
-	echo "output = json" >> $HOME/.aws/testFile
-	echo "region = $region" >> $HOME/.aws/testFile
+	echo "output = json" >> $HOME/.aws/config
+	echo "region = $region" >> $HOME/.aws/config
 	echo "Profile has been created"
 fi
 
@@ -63,9 +69,9 @@ eval $awsCommand
 
 read -p "Did the command succeed? (y/n): " awsCommandSuccess
 if [[ "$addConfigResponse" == [Nn] ]]; then
-	linesTotal=$(wc -l $HOME/.aws/testFile | awk '{print $1}')
+	linesTotal=$(wc -l $HOME/.aws/config | awk '{print $1}')
 	linesFinal="$(($linesTotal-7))"
-	head -n $linesFinal $HOME/.aws/testFile > $HOME/.aws/testFile
+	head -n $linesFinal $HOME/.aws/config > $HOME/.aws/config
 	unset -u
 fi
 
