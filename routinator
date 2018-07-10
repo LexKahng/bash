@@ -312,7 +312,7 @@ setACL() {
 	
 	if [[ -n "$aclId" ]]; then
 		aclTableOutbound=`aws ec2 describe-network-acls --network-acl-ids "$aclId" --query 'NetworkAcls[*].Entries[?Egress].{Cidr:CidrBlock,Rule:RuleAction,RuleNumber:RuleNumber}' --output table`
-		aclTableInbound=$(aws ec2 describe-network-acls --network-acl-ids acl-e66d4081 --query 'NetworkAcls[*].Entries[?Egress==`false`].{Cidr:CidrBlock,Rule:RuleAction,RuleNumber:RuleNumber}' --output table)
+		aclTableInbound=$(aws ec2 describe-network-acls --network-acl-ids "$aclId" --query 'NetworkAcls[*].Entries[?Egress==`false`].{Cidr:CidrBlock,Rule:RuleAction,RuleNumber:RuleNumber}' --output table)
 	else
 		aclTableOutbound="No ACL associated with SG? a bug in code?"
 		aclTableOutbound="No ACL associated with SG? a bug in code?"

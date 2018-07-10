@@ -1,0 +1,6 @@
+#!/bin/bash
+
+read -p "Enter the instance Hostname: " hostname
+shortcode=${hostname:0:4}
+shortcode=$(echo $shortcode | awk '{print toupper($0)}')
+echo $shortcode
