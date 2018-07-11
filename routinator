@@ -32,9 +32,16 @@ main() {
 	done
 
 	if [[ "$switchroleQ" == [yY] ]]; then
+		set -e
+		myvar=$(switchrole)
 		switchrole
+		if [[ -n "$switchroleSuccess" ]]; then
+			exit 1
+		fi
 	fi
-
+	
+	
+	
 	instanceID=""
 	while [[ -z "$instanceID" ]]; do
 		read -p "Enter that instanceID: " instanceID

@@ -6,6 +6,8 @@ shortcode=${hostname:0:4}
 region="eu-west-1"
 regionExists=false
 shortcode=$(echo $shortcode | awk '{print toupper($0)}')
+errors=""
+success=false
 
 shortcodeConfigCheck=$(grep -rnw "$HOME/.aws/config" -e "$shortcode")
 if [[ -z $shortcodeConfigCheck ]]; then
@@ -21,8 +23,7 @@ if [[ "$addConfigResponse" == [Yy] ]]; then
 	while [[ $regionExists = false ]]; do
 	
 		if [[ -n "$regionResponse" ]]; then
-			for i in "${regionList[@]}"; do	
-						
+			for i in "${regionList[@]}"; do				
 				if [[ "$i" == "$region" ]]; then
 					regionExists=true
 					region=$regionResponse
@@ -58,23 +59,28 @@ if [[ "$addConfigResponse" == [Yy] ]]; then
 	echo "Profile has been created"
 fi
 
-export AWS_PROFILE=$shortcode
-export AWS_REGION=$region
-echo "Your AWS_PROFILE is set to $AWS_PROFILE"
-echo "Your AWS_REGION is set to $AWS_REGION"
+switchroleSuccess=$(aws ec2 describe-instances --query 'Reservations[*].Instances[*].InstanceId' --profile $shortcode --region $region --output text)
+errors=$?
 
-read -p "Try running a command: " awsCommand
-
-eval $awsCommand
-
-read -p "Did the command succeed? (y/n): " awsCommandSuccess
-if [[ "$addConfigResponse" == [Nn] ]]; then
-	linesTotal=$(wc -l $HOME/.aws/config | awk '{print $1}')
-	linesFinal="$(($linesTotal-7))"
-	head -n $linesFinal $HOME/.aws/config > $HOME/.aws/config
-	unset -u
+if [[ -n "$switchroleSuccess" ]]; then
+	echo "I have confirmed I can run AWS cli"
+	export AWS_PROFILE=$shortcode
+	export AWS_REGION=$region
+	echo "Your AWS_PROFILE is set to $AWS_PROFILE"
+	echo "Your AWS_REGION is set to $AWS_REGION"
+else
+	echo "I gots some errors.. Exiting"
+	AWS_PROFILE=""
+	AWS_REGION=""
+	errors=""
+	exit 1
 fi
 
-echo "It is time for me to end myself"
-
+# read -p "Did the command succeed? (y/n): " awsCommandSuccess
+# if [[ "$addConfigResponse" == [Nn] ]]; then
+# 	linesTotal=$(wc -l $HOME/.aws/config | awk '{print $1}')
+# 	linesFinal="$(($linesTotal-7))"
+# 	head -n $linesFinal $HOME/.aws/config > $HOME/.aws/config
+# 	unset -u
+# fi
 
