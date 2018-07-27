@@ -64,16 +64,13 @@ errors=$?
 
 if [[ -n "$switchroleSuccess" ]]; then
 	echo "I have confirmed I can run AWS cli"
-	export AWS_PROFILE=$shortcode
-	export AWS_REGION=$region
-	echo "Your AWS_PROFILE is set to $AWS_PROFILE"
-	echo "Your AWS_REGION is set to $AWS_REGION"
+	echo "export AWS_PROFILE=$shortcode ; export AWS_REGION=$region" | pbcopy && echo "Please enter command + v now to export the env variables"
 else
 	echo "I gots some errors.. Exiting"
 	AWS_PROFILE=""
 	AWS_REGION=""
 	errors=""
-	exit 1
+	return 1
 fi
 
 # read -p "Did the command succeed? (y/n): " awsCommandSuccess
